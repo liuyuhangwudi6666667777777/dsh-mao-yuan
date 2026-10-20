@@ -1,0 +1,9 @@
+# dsh-mao-yuan bundle patch: 把 host 半边挂进 host Loader。
+#
+# 安装：
+#   dsh plugin --profile web add github:<you>/dsh-mao-yuan
+# 或本地开发：
+#   dsh plugin --profile web add link:<abs-path-to-this-dir>
+- insert:
+    - id: dsh-mao-yuan
+      name: 'dsh-mao-yuan'

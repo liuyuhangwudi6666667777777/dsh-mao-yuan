@@ -1,0 +1,36 @@
+{
+  "name": "dsh-mao-yuan",
+  "version": "0.1.0",
+  "description": "毛选溯源参谋：以《毛泽东选集》方法论拆解问题，每个判断可回溯原文出处。关键词检索 + 强制引用 + 调查前置。",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.js",
+  "files": [
+    "src"
+  ],
+  "license": "MIT",
+  "keywords": [
+    "dsh-plugin",
+    "maoxuan",
+    "mao",
+    "rag",
+    "retrieval",
+    "methodology"
+  ],
+  "scripts": {
+    "corpus": "node scripts/fetch-corpus.mjs",
+    "test": "node --test \"test/*.test.js\"",
+    "eval": "node scripts/eval.mjs"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/dsh-tools": ">=0.1.5-rc <2",
+    "@deepseek-ai/dsh-system-prompt": ">=0.1.5-rc <2",
+    "@deepseek-ai/cordis": ">=4.0.0-rc <5",
+    "@deepseek-ai/schemastery": "^3.18.0"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  }
+}
