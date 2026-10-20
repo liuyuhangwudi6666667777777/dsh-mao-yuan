@@ -1,21 +1,21 @@
 /**
- * 插件入口：加载语料 → 建索引 → 注册检索工具 → 注册**按需加载**的 skill。
+ * 插件入口：加载语料 → 建索引 → 注册检索工具 → 注册按需 skill → 挂动态提醒。
  *
- * 关键设计（针对"装了之后问什么都变毛选"的问题）：
+ * 三层"要不要用毛选"的设计：
  *
- *  - 提示词**不**常驻注入 system prompt。
- *    改为注册一个 skill：只进技能目录（名字 + 一句话描述），
- *    模型判断相关时才加载全文，用户也可以 `/maoxuan` 手动触发。
- *    问天气、查文档、写代码都不会被这套方法论污染。
+ *  1. **skill 目录**（常驻，只占一行）
+ *     模型判断相关时自动加载，用户也能 `/maoxuan` 触发。
+ *     问天气、查文档、写代码不会触发。
  *
- *  - 检索工具 `mao_search` 保持全局可用。
- *    它是被动的：没人调用就什么也不做。模型在没有加载 skill 时不会去调它。
+ *  2. **会话级持续生效**
+ *     `/maoxuan` 调用一次后，本会话后续每轮自动带方法论，
+ *     不需要反复输入。`/maoxuan off` 关闭。
+ *     状态存在 WeakMap<Agent, boolean>，会话隔离、重启清空。
  *
- *  - 三层开关：
- *      1. 插件总开关 `enabled`
- *      2. skill 是否允许模型自动加载 `modelInvocable`
- *      3. skill 是否允许用户 `/maoxuan` 触发 `userInvocable`
- *    全关 = 插件等于不存在。
+ *  3. **插件级开关**
+ *     enabled / modelInvocable / userInvocable，全关等于插件不存在。
+ *
+ * 检索工具 `mao_search` 全局注册但被动：没人调用就什么也不做。
  */
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
@@ -24,19 +24,25 @@ import { loadCorpus } from './corpus.js'
 import { Bm25Index } from './bm25.js'
 import { createSearchTool } from './tool-search.js'
 import { buildSkillRegistration, SKILL_NAME } from './skill.js'
+import { isActive, setActive, scanToggle } from './session-state.js'
+import { buildDynamicSection } from './active-reminder.js'
 
 export const name = 'dsh-mao-yuan'
 
-export const inject = ['skills', 'tools']
+export const inject = ['skills', 'tools', 'systemPrompt']
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url))
 const CORPUS_DIR = join(ROOT, 'corpus')
 
+/** 动态提醒段排在 persona 之后、工具说明之前 */
+const REMINDER_ORDER = 10
+
 /**
  * @typedef {object} Config
- * @property {boolean} enabled         插件总开关
- * @property {boolean} modelInvocable  允许模型在相关问题出现时自动加载 skill
- * @property {boolean} userInvocable   允许用户用 /maoxuan 手动触发
+ * @property {boolean} enabled          插件总开关
+ * @property {boolean} modelInvocable   允许模型在相关问题出现时自动加载 skill
+ * @property {boolean} userInvocable    允许用户用 /maoxuan 手动触发
+ * @property {boolean} sticky           允许会话内持续生效（默认开）
  */
 
 /** @type {Required<Config>} */
@@ -44,6 +50,7 @@ export const DEFAULTS = {
   enabled: true,
   modelInvocable: true,
   userInvocable: true,
+  sticky: true,
 }
 
 /**
@@ -116,8 +123,39 @@ export function apply(ctx, config = {}) {
       `[${name}] 已注册 skill /${SKILL_NAME}` +
         `（模型可自动加载：${cfg.modelInvocable}，用户可手动触发：${cfg.userInvocable}）`,
     )
-  } else {
-    ctx.logger?.info?.(`[${name}] skill 未注册（modelInvocable 与 userInvocable 均为 false）`)
+  }
+
+  // --- 会话级持续生效 ---
+  // 记录"最近一次组装提示词的是哪个 agent"，供动态段落求值时查询。
+  /** @type {object | undefined} */
+  let currentAgent
+
+  if (cfg.sticky) {
+    // 动态提醒段：未激活时返回空串，不占 token
+    disposers.push(
+      ctx.systemPrompt.section(
+        buildDynamicSection({
+          order: REMINDER_ORDER,
+          getAgent: () => currentAgent,
+        }),
+      ),
+    )
+
+    // 每轮开始前：识别 /maoxuan 与 /maoxuan off，切换本会话状态
+    ctx.on('agent/pre-step', async ({ agent, messages }, next) => {
+      currentAgent = agent
+      if (agent) {
+        const { action } = scanToggle(messages)
+        if (action === 'on' && !isActive(agent)) {
+          setActive(agent, true)
+          ctx.logger?.info?.(`[${name}] 本会话已进入毛选模式（持续生效）`)
+        } else if (action === 'off' && isActive(agent)) {
+          setActive(agent, false)
+          ctx.logger?.info?.(`[${name}] 本会话已退出毛选模式`)
+        }
+      }
+      return next()
+    })
   }
 
   ctx.logger?.info?.(`[${name}] 已加载`)

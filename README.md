@@ -25,7 +25,7 @@
 
 ```json
 // 装的时候可以传配置
-{ "enabled": true, "modelInvocable": true, "userInvocable": true }
+{ "enabled": true, "modelInvocable": true, "userInvocable": true, "sticky": true }
 ```
 
 | 配置 | 效果 | 适用场景 |
@@ -33,10 +33,11 @@
 | `enabled: false` | 插件完全不存在，不注册任何东西 | 暂时不想用 |
 | `modelInvocable: false` | **只能 `/maoxuan` 手动触发**，模型不会自己加载 | 想完全自己掌控（推荐） |
 | `userInvocable: false` | 模型可自动加载，但没 `/maoxuan` 命令 | 希望它自己判断 |
-| 两个都 true（默认） | 自动 + 手动都可用 | 默认 |
-| 两个都 false | 只留 `mao_search` 工具 | 只想要检索能力 |
+| `sticky: false` | 关掉会话内持续生效，恢复"每次都要打 /maoxuan" | 只想单次使用 |
+| 全 true（默认） | 自动 + 手动 + 持续都可用 | 默认 |
+| `modelInvocable` + `userInvocable` 都 false | 只留 `mao_search` 工具 | 只想要检索能力 |
 
-**默认是"两个都 true"**，但描述里写死了排除条件——日常问答、事实查询、技术问题不加载。如果你连"模型自己判断"都不放心，装的时候把 `modelInvocable` 设成 `false`，就只有 `/maoxuan` 能唤起。
+**默认全开**，但 skill 描述里写死了排除条件——日常问答、事实查询、技术问题不加载。如果你连"模型自己判断"都不放心，把 `modelInvocable` 设成 `false`，就只有 `/maoxuan` 能唤起。
 
 ---
 
@@ -58,16 +59,62 @@ dsh plugin --profile web add link:<本目录绝对路径>
 
 装好后新建会话，然后：
 
-- **手动触发**：输入 `/maoxuan 我该不该辞职`
-- **自动触发**：直接问"用矛盾论分析一下我的团队问题"，模型会自己加载
+```
+/maoxuan 我该不该辞职        ← 开启，本会话持续生效
+那我该怎么准备               ← 自动仍是毛选模式，不用重复输入
+还有别的风险吗               ← 继续有效
+/maoxuan off                ← 关闭，之后恢复正常
+```
+
+**一次调用，会话内持续生效**，关掉就没了。
 
 其他时候——问代码、查文档、闲聊——它不会出现。
 
 ---
 
+## 会话级持续生效是怎么实现的
+
+`/maoxuan` 的正文是那一刻作为一条 user message 注入历史的，**不会每轮重新出现**。多轮之后模型可能淡忘自己处在毛选模式，尤其上下文被压缩时。
+
+所以额外加了一个**动态 system prompt 段**：
+
+```js
+systemPrompt.section({
+  name: 'mao-yuan:active-reminder',
+  order: 10,
+  text: () => isActive(agent) ? ACTIVE_REMINDER : '',   // 函数，每轮求值
+})
+```
+
+- `text` 传函数，每次组装提示词时重新求值
+- **未激活返回空字符串 → 不占任何 token**
+- 激活后每轮返回 237 字简短提醒（不是全文，全文已由 skill 注入过）
+
+状态用 `WeakMap<Agent, boolean>` 存：
+
+| 特性 | 结果 |
+|---|---|
+| 会话隔离 | 每个 Agent 独立，A 开了不影响 B |
+| 自动回收 | WeakMap 不阻止 GC，会话结束状态自然消失 |
+| 不落盘 | 重启清空，符合"会话内生效"语义 |
+
+开关由 `agent/pre-step` 钩子扫描用户消息识别：
+
+| 输入 | 结果 |
+|---|---|
+| `/maoxuan` | 开 |
+| `/maoxuan <问题>` | 开，并按问题作答 |
+| `/maoxuan off` | 关 |
+| `/maoxuan 关` / `关闭` | 关 |
+| `/maoxuan 关掉这个项目合适吗` | **仍是开** |
+
+最后一条是刻意设计：只认**首词**是 `off`/`关`/`关闭`/`停止`/`退出` 才关闭，避免把正常提问误判成关闭指令。
+
+---
+
 ## 能力
 
-加载 skill 后：
+加载后：
 
 1. **先调查再发言** —— 信息不足先问 3–5 个具体问题，不急着下结论
 2. **强制引用** —— 任何"毛选怎么讲"必须先调 `mao_search` 检索原文
@@ -162,13 +209,15 @@ dsh-mao-yuan/
 │   ├── fetch-corpus.mjs  # 拉语料（走 tarball，raw.githubusercontent 常被重置）
 │   └── eval.mjs          # 检索质量评测，低于阈值退出码非 0
 ├── src/
-│   ├── index.js          # 插件入口 + 三层开关
+│   ├── index.js          # 插件入口 + 三层开关 + pre-step 钩子
 │   ├── skill.js          # 按需加载的 skill 定义
+│   ├── session-state.js  # 会话级激活状态（WeakMap）+ /maoxuan 开关解析
+│   ├── active-reminder.js# 动态提示词段（未激活返回空串）
 │   ├── corpus.js         # 装载 + 剥离注释题解 + 段落切分
 │   ├── tokenize.js       # 无词典 bigram
 │   ├── bm25.js           # BM25 + 篇名/短语加成
 │   └── tool-search.js    # mao_search 工具
-├── test/                 # 22 个单元测试
+├── test/                 # 45 个单元测试
 └── corpus/               # 语料（gitignore，不入库）
 ```
 
