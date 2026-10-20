@@ -64,3 +64,25 @@ test('buildSkillRegistration: 可单独关闭用户触发', () => {
   assert.equal(reg.invocation.modelInvocable, true)
   assert.equal(reg.invocation.userInvocable, false)
 })
+
+test('buildSkillRegistration: source 必须是字符串（回归测试）', () => {
+  // ctx.skills.register() 只补 invocation/provider，不补 source。
+  // 缺了它，注册能过，但 /maoxuan 加载时抛：
+  //   loaded skill "maoxuan" source must be a string
+  const reg = buildSkillRegistration()
+  assert.equal(typeof reg.source, 'string')
+  assert.ok(reg.source.length > 0)
+})
+
+test('buildSkillRegistration: 所有必填字段类型正确（模拟加载期校验）', () => {
+  const reg = buildSkillRegistration()
+  // 对应 dsh-skill 的 validateLoadedSkill
+  assert.equal(typeof reg.name, 'string')
+  assert.equal(typeof reg.description, 'string')
+  assert.ok(reg.description.length > 0)
+  assert.equal(typeof reg.content, 'string')
+  assert.equal(typeof reg.source, 'string')
+  assert.equal(typeof reg.invocation.modelInvocable, 'boolean')
+  assert.equal(typeof reg.invocation.userInvocable, 'boolean')
+  if (reg.whenToUse !== undefined) assert.equal(typeof reg.whenToUse, 'string')
+})

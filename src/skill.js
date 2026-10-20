@@ -99,6 +99,10 @@ export function buildSkillRegistration(opts = {}) {
     description: SKILL_DESCRIPTION,
     whenToUse: SKILL_WHEN_TO_USE,
     content: BODY,
+    // source 必填：ctx.skills.register() 只给 invocation/provider 补默认值，
+    // 不补 source；而加载时校验要求 typeof source === 'string'，
+    // 漏掉就会在 /maoxuan 触发时抛 "loaded skill ... source must be a string"。
+    source: 'runtime',
     invocation: {
       modelInvocable: opts.modelInvocable ?? true,
       userInvocable: opts.userInvocable ?? true,
