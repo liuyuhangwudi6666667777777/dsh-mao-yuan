@@ -103,7 +103,7 @@ function MaoYuanPill({ useInput, inputActions, sessionId }) {
     'button',
     {
       type: 'button',
-      className: 'dsh-mao-yuan-pill',
+      className: 'maoxuan-search-pill',
       title: '毛选模式已开启（本会话持续生效）。点击关闭。',
       onClick: () => {
         st.active = false

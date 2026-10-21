@@ -34,7 +34,7 @@ const PROTOCOL_VERSION = '2024-11-05'
 
 /** 服务信息 */
 const SERVER_INFO = {
-  name: 'dsh-mao-yuan',
+  name: 'maoxuan-search',
   version: '1.0.0',
 }
 
@@ -67,7 +67,7 @@ function ensureIndex() {
 
 /** 日志走 stderr —— stdout 是 JSON-RPC 通道，绝不能污染 */
 function log(msg) {
-  process.stderr.write(`[dsh-mao-yuan] ${msg}\n`)
+  process.stderr.write(`[maoxuan-search] ${msg}\n`)
 }
 
 // ---------------------------------------------------------------- 工具定义

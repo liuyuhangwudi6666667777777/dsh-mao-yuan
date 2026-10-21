@@ -25,7 +25,7 @@ test('client: bundle 语法合法', () => {
 
 test('client: 使用 __ModuleLoader__ 包装格式', () => {
   assert.match(source, /window\.__ModuleLoader__\.load\(/)
-  assert.match(source, /id:\s*['"]dsh-mao-yuan['"]/)
+  assert.match(source, /id:\s*['"]maoxuan-search['"]/)
   assert.match(source, /factory:\s*\(require\)\s*=>/)
 })
 

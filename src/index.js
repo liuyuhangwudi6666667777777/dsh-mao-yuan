@@ -27,7 +27,7 @@ import { buildSkillRegistration, SKILL_NAME } from './skill.js'
 import { isActive, setActive, scanToggle } from './session-state.js'
 import { buildDynamicSection } from './active-reminder.js'
 
-export const name = 'dsh-mao-yuan'
+export const name = 'maoxuan-search'
 
 export const inject = ['skills', 'tools', 'systemPrompt']
 

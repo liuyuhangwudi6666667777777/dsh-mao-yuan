@@ -1,12 +1,12 @@
 {
-  "name": "dsh-mao-yuan",
+  "name": "maoxuan-search",
   "version": "1.0.0",
-  "description": "毛选溯源参谋：用《毛泽东选集》方法论拆解问题，每个判断可回溯原文出处。可作为 DSH 插件或 MCP server 使用。",
+  "description": "毛选溯源参谋：用《毛泽东选集》方法论拆解问题，每个判断可回溯原文出处。支持 MCP 与 DSH。",
   "private": false,
   "type": "module",
   "main": "./src/index.js",
   "bin": {
-    "mao-yuan-mcp": "./mcp/server.mjs"
+    "maoxuan-mcp": "./mcp/server.mjs"
   },
   "exports": {
     ".": "./src/index.js",

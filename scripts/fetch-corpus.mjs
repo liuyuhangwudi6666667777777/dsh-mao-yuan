@@ -101,7 +101,7 @@ async function main() {
   const url = `https://codeload.github.com/${SOURCE.repo}/tar.gz/refs/heads/${SOURCE.branch}`
   console.log(`[corpus] 下载 ${SOURCE.repo}…`)
 
-  const res = await fetch(url, { headers: { 'user-agent': 'dsh-mao-yuan' }, redirect: 'follow' })
+  const res = await fetch(url, { headers: { 'user-agent': 'maoxuan-search' }, redirect: 'follow' })
   if (!res.ok) throw new Error(`下载失败 ${res.status} ${res.statusText}`)
 
   const gz = Buffer.from(await res.arrayBuffer())

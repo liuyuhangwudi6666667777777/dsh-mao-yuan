@@ -1,4 +1,4 @@
-# 毛选溯源参谋 · dsh-mao-yuan
+# 毛选溯源参谋 · maoxuan-search
 
 让 AI 引用《毛泽东选集》时**有据可查**——每个判断都能翻回原文的篇目、章节、段落号。
 
@@ -53,8 +53,8 @@
 ### 第 1 步：拿到代码和语料
 
 ```bash
-git clone https://github.com/liuyuhangwudi6666667777777/dsh-mao-yuan.git
-cd dsh-mao-yuan
+git clone https://github.com/liuyuhangwudi6666667777777/maoxuan-search.git
+cd maoxuan-search
 
 node scripts/fetch-corpus.mjs     # 下载 229 篇到 corpus/（约 1.3 MB）
 node scripts/eval.mjs             # 验证：应输出 20/20 = 100%
@@ -86,7 +86,7 @@ node mcp/print-config.mjs cursor    # 只打印某一个
   "mcpServers": {
     "maoxuan": {
       "command": "node",
-      "args": ["/绝对路径/dsh-mao-yuan/mcp/server.mjs"]
+      "args": ["/绝对路径/maoxuan-search/mcp/server.mjs"]
     }
   }
 }
@@ -102,7 +102,7 @@ node mcp/print-config.mjs cursor    # 只打印某一个
 一条命令：
 
 ```bash
-claude mcp add maoxuan -- node "/绝对路径/dsh-mao-yuan/mcp/server.mjs"
+claude mcp add maoxuan -- node "/绝对路径/maoxuan-search/mcp/server.mjs"
 ```
 
 </details>
@@ -117,7 +117,7 @@ claude mcp add maoxuan -- node "/绝对路径/dsh-mao-yuan/mcp/server.mjs"
   "mcpServers": {
     "maoxuan": {
       "command": "node",
-      "args": ["/绝对路径/dsh-mao-yuan/mcp/server.mjs"]
+      "args": ["/绝对路径/maoxuan-search/mcp/server.mjs"]
     }
   }
 }
@@ -137,7 +137,7 @@ Cline 面板 → MCP Servers → Configure → 编辑 `cline_mcp_settings.json`�
   "mcpServers": {
     "maoxuan": {
       "command": "node",
-      "args": ["/绝对路径/dsh-mao-yuan/mcp/server.mjs"],
+      "args": ["/绝对路径/maoxuan-search/mcp/server.mjs"],
       "disabled": false,
       "autoApprove": ["mao_search"]
     }
@@ -159,7 +159,7 @@ Cline 面板 → MCP Servers → Configure → 编辑 `cline_mcp_settings.json`�
   "mcpServers": {
     "maoxuan": {
       "command": "node",
-      "args": ["/绝对路径/dsh-mao-yuan/mcp/server.mjs"]
+      "args": ["/绝对路径/maoxuan-search/mcp/server.mjs"]
     }
   }
 }
@@ -178,7 +178,7 @@ Cline 面板 → MCP Servers → Configure → 编辑 `cline_mcp_settings.json`�
     {
       "name": "maoxuan",
       "command": "node",
-      "args": ["/绝对路径/dsh-mao-yuan/mcp/server.mjs"]
+      "args": ["/绝对路径/maoxuan-search/mcp/server.mjs"]
     }
   ]
 }
@@ -197,7 +197,7 @@ Cline 面板 → MCP Servers → Configure → 编辑 `cline_mcp_settings.json`�
     "maoxuan": {
       "command": {
         "path": "node",
-        "args": ["/绝对路径/dsh-mao-yuan/mcp/server.mjs"]
+        "args": ["/绝对路径/maoxuan-search/mcp/server.mjs"]
       }
     }
   }
@@ -213,7 +213,7 @@ Cline 面板 → MCP Servers → Configure → 编辑 `cline_mcp_settings.json`�
 
 ```
 command: node
-args:    ["/绝对路径/dsh-mao-yuan/mcp/server.mjs"]
+args:    ["/绝对路径/maoxuan-search/mcp/server.mjs"]
 ```
 
 不需要 API key，不需要网络（语料已在本地），不需要额外依赖。
@@ -244,7 +244,7 @@ MCP 只提供**检索能力**。要让 AI 用毛选的方法论回答，还得�
 如果你用的是 DeepSeek Harness，装成插件即可，提示词和 UI 都自带：
 
 ```bash
-dsh plugin --profile web add link:/绝对路径/dsh-mao-yuan
+dsh plugin --profile web add link:/绝对路径/maoxuan-search
 ```
 
 重启 `dsh web` 后，在会话里输入：
@@ -257,7 +257,7 @@ dsh plugin --profile web add link:/绝对路径/dsh-mao-yuan
 点胶囊或 `/maoxuan off` 关闭。
 
 > 路径含空格时 `dsh plugin add` 会报错（实测会截断路径）。
-> 这时手工登记更稳：建 junction 到 `~/.dsh/profiles/web/node_modules/dsh-mao-yuan`，
+> 这时手工登记更稳：建 junction 到 `~/.dsh/profiles/web/node_modules/maoxuan-search`，
 > 再在 profile 的 `package.json` 里加进 `dependencies` 和 `dsh.profile.bundles`，
 > 最后 `dsh plugin --profile web install`。改前记得备份。
 
@@ -297,7 +297,7 @@ node mcp/server.mjs --selftest
 ## 项目结构
 
 ```
-dsh-mao-yuan/
+maoxuan-search/
 ├── mcp/
 │   ├── server.mjs          # MCP server（stdio，零依赖）
 │   └── print-config.mjs    # 生成各客户端配置片段

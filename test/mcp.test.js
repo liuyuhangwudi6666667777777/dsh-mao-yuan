@@ -81,7 +81,7 @@ test('mcp: initialize 返回协议版本与工具能力', async () => {
     assert.equal(res.jsonrpc, '2.0')
     assert.equal(res.result.protocolVersion, '2024-11-05')
     assert.ok(res.result.capabilities.tools !== undefined)
-    assert.equal(res.result.serverInfo.name, 'dsh-mao-yuan')
+    assert.equal(res.result.serverInfo.name, 'maoxuan-search')
   } finally {
     s.close()
   }
@@ -167,7 +167,7 @@ test('mcp: stdout 只输出 JSON-RPC，日志走 stderr', async () => {
     await s.call('tools/list', {})
     // 等待 stderr 有内容
     await new Promise((r) => setTimeout(r, 300))
-    assert.ok(s.stderr().includes('[dsh-mao-yuan]'), 'stderr 应有日志')
+    assert.ok(s.stderr().includes('[maoxuan-search]'), 'stderr 应有日志')
     // stdout 出现非 JSON 会被记在 __bad__
     assert.equal(s.pending.get('__bad__'), undefined, 'stdout 不得被日志污染')
   } finally {
