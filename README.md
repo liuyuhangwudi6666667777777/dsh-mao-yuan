@@ -1,8 +1,15 @@
 # dsh-mao-yuan · 毛选溯源参谋
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
+[![DSH Plugin](https://img.shields.io/badge/DSH-plugin-purple.svg)](https://github.com/deepseek-ai/deepseek-harness)
+
 用《毛泽东选集》的方法论拆解现实问题，**每个判断都能翻回原文出处**。
 
 **按需加载**：装了不影响日常使用。只有你说"用毛选分析"或输入 `/maoxuan` 时才生效。
+
+> ⚠️ **本仓库只包含代码，不包含《毛选》原文全文。**
+> 原文由使用者本地运行 `scripts/fetch-corpus.mjs` 获取。
+> 详见 [NOTICE.md](./NOTICE.md)。
 
 ---
 
@@ -189,12 +196,31 @@ systemPrompt.section({
 
 ## 版权（重要）
 
-- 《毛选》单篇著作保护期至 **2026-12-31** 届满（作者 1976 年逝世 + 50 年）。
-- 但**选集的编排、校订、注释是人民出版社的编辑作品**，不受此限。
-- 因此：**全文不入库、不打进安装包**，由使用者本地运行 `fetch-corpus.mjs` 获取。
-- 仓库只存代码与短引。
+**本仓库只包含代码，不包含《毛选》原文全文。** 完整说明见 [NOTICE.md](./NOTICE.md)，要点：
 
-语料来源：[weiyinfu/MaoZeDongAnthology](https://github.com/weiyinfu/MaoZeDongAnthology)。
+| 内容 | 状态 |
+|---|---|
+| 本仓库代码（`src/` `lib/` `test/` `scripts/`） | **MIT**，可自由使用 |
+| 《毛选》单篇著作 | 保护期至 **2026-12-31** 届满（作者 1976 年逝世 + 50 年） |
+| 选集的编排、校订、**注释与题解** | 编者作品，权利独立于单篇著作 |
+| 第三方语料源 | 该仓库**未声明开源许可**，本项目不转存、不再分发 |
+
+据此，本项目做了三件事：
+
+1. **全文不入库**：`.gitignore` 排除 `corpus/`，仓库只存代码（22 个文件，72 KB）
+2. **用户本地拉取**：`scripts/fetch-corpus.mjs` 在本地下载，不经仓库分发
+3. **检索时剥离注释与题解**：`stripApparatus()` 切掉 `注　　释` 段与 `>` 题解
+
+第 3 条同时解决两个问题：
+
+- **准确性** —— 注释不是毛泽东的话，混进结果会让答案张冠李戴
+  （实测：《为人民服务》的 Top-1 命中曾是张思德的脚注）
+- **版权** —— 注释是编者作品，不在单篇著作保护期内
+
+实测：2508 段 → 2065 段，剔除 443 条。
+
+> 署名权、修改权、保护作品完整权的保护期不受限制。
+> 即使财产权利届满，引用时仍应准确署名、不得歪曲篡改。
 
 ---
 
@@ -202,9 +228,10 @@ systemPrompt.section({
 
 ```
 dsh-mao-yuan/
+├── LICENSE               # MIT（仅覆盖代码）
+├── NOTICE.md             # 版权与使用声明（重要）
 ├── cordis.patch.yml      # 挂进 host Loader
 ├── package.json          # dsh.bundle.patch 声明
-├── PUSH.md               # GitHub 建仓与回退说明
 ├── scripts/
 │   ├── fetch-corpus.mjs  # 拉语料（走 tarball，raw.githubusercontent 常被重置）
 │   └── eval.mjs          # 检索质量评测，低于阈值退出码非 0

@@ -2,7 +2,7 @@
   "name": "dsh-mao-yuan",
   "version": "0.4.0",
   "description": "毛选溯源参谋：以《毛泽东选集》方法论拆解问题，每个判断可回溯原文出处。关键词检索 + 强制引用 + 会话内持续生效。",
-  "private": true,
+  "private": false,
   "type": "module",
   "main": "./src/index.js",
   "exports": {
