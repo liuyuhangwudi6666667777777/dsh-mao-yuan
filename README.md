@@ -1,368 +1,296 @@
-# dsh-mao-yuan · 毛选溯源参谋
+# 毛选溯源参谋 · dsh-mao-yuan
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
-[![DSH Plugin](https://img.shields.io/badge/DSH-plugin-purple.svg)](https://github.com/deepseek-ai/deepseek-harness)
+让 AI 引用《毛泽东选集》时**有据可查**——每个判断都能翻回原文的篇目、章节、段落号。
 
-用《毛泽东选集》的方法论拆解现实问题，**每个判断都能翻回原文出处**。
+支持 **MCP**，可在 Claude、Cursor、Cline、Windsurf、Continue、Zed 等客户端使用；
+也可以作为 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 插件。
 
-**按需加载**：装了不影响日常使用。只有你说"用毛选分析"或输入 `/maoxuan` 时才生效。
-
-> ⚠️ **本仓库只包含代码，不包含《毛选》原文全文。**
-> 原文由使用者本地运行 `scripts/fetch-corpus.mjs` 获取。
+> ⚠️ 本仓库只含代码，**不含《毛选》原文**。原文由你本地运行脚本获取。
 > 详见 [NOTICE.md](./NOTICE.md)。
 
 ---
 
-## 30 秒上手
+## 它独特在哪
+
+市面上的"毛选 AI"几乎都是提示词包。问题在于：模型可以随口说"毛泽东说过……"，
+**你没法分辨真假**——而这恰恰最难发现，因为它听起来很像。
+
+本项目加了一层**原文检索**：
+
+| | 普通提示词包 | 本项目 |
+|---|---|---|
+| 模型说"毛选里讲" | 无法验证 | 必须先调 `mao_search` |
+| 引用格式 | 篇名都可能是编的 | `篇名 · 章节 · 第 N 段`，可翻回原文 |
+| 检索不到时 | 继续编 | 明确回答"《毛选》里没有直接谈这个" |
+| 注释污染 | 无处理 | 自动剔除编者注释与题解 |
+
+最后一条值得单说：语料里 169/229 篇带 `注　　释` 段落，179 篇带题解。
+这些是**编者作品，不是毛泽东的话**。不过滤的话，检索结果会把脚注当正文返回——
+实测中《为人民服务》的 Top-1 命中曾是张思德的脚注。本项目切掉了 443 条，
+段落数 2508 → 2065。
+
+### 检索效果
+
+真实运行输出：
+
+```
+查询：主要矛盾 次要矛盾
+
+【1】矛盾论 › 四　主要的矛盾和主要的矛盾方面 （第 1 段）
+   在矛盾特殊性的问题中，还有两种情形必须特别地提出来加以分析，
+   这就是主要的矛盾和主要的矛盾方面。在复杂的事物的发展过程中，
+   有许多的矛盾存在，其中必有一种是主要的矛盾……
+
+【2】工人阶级与资产阶级的矛盾是国内的主要矛盾 （第 2 段）
+   在打倒地主阶级和官僚资产阶级以后，中国内部的主要矛盾即是
+   工人阶级与民族资产阶级的矛盾……
+```
+
+---
+
+## 安装
+
+### 第 1 步：拿到代码和语料
 
 ```bash
 git clone https://github.com/liuyuhangwudi6666667777777/dsh-mao-yuan.git
 cd dsh-mao-yuan
 
-node scripts/fetch-corpus.mjs     # 拉语料到本地 corpus/（约 1.3 MB，229 篇）
-node scripts/eval.mjs             # 验证检索质量，应输出 20/20 = 100%
+node scripts/fetch-corpus.mjs     # 下载 229 篇到 corpus/（约 1.3 MB）
+node scripts/eval.mjs             # 验证：应输出 20/20 = 100%
 ```
 
-然后装进 DSH，二选一：
+> 需要能访问 GitHub。脚本走 `codeload` tarball，比 `raw.githubusercontent.com` 稳。
+> 完全离线也行：自己准备 Markdown 放 `corpus/`，命名 `NNN-篇名.md`。
 
-**方式 A：路径不含空格**（简单）
+### 第 2 步：接到你的 AI 客户端
+
+先打印出适合你机器的配置（路径已填好，直接复制）：
 
 ```bash
-dsh plugin --profile web add link:/绝对/路径/dsh-mao-yuan
+node mcp/print-config.mjs           # 打印全部客户端
+node mcp/print-config.mjs cursor    # 只打印某一个
 ```
 
-**方式 B：路径含空格**（如 `C:\my projects\...`）
+下面是各客户端的配置方式。
 
-`dsh plugin add` 会把空格路径截断而报错（实测：
-`Failed to resolve the latest version of ...`）。此时手工登记更可靠：
+<details open>
+<summary><b>Claude Desktop</b></summary>
 
-```powershell
-$src = "C:\deepseek dsh\毛选智能体\dsh-mao-yuan"          # 你的实际路径
-$dst = "$env:USERPROFILE\.dsh\profiles\web\node_modules\dsh-mao-yuan"
+配置文件：
+- macOS `~/Library/Application Support/Claude/claude_desktop_config.json`
+- Windows `%APPDATA%\Claude\claude_desktop_config.json`
 
-# 1. 软链接进 profile
-New-Item -ItemType Junction -Path $dst -Target $src -Force
-
-# 2. 在 profile 的 package.json 里登记（dependencies 和 dsh.profile.bundles 各加一项）
-#    "dependencies":  { "dsh-mao-yuan": "link:<把上面 $src 的路径粘进来，正斜杠>" }
-#    "dsh.profile.bundles": [ ... , "dsh-mao-yuan" ]
-
-# 3. 装依赖
-dsh plugin --profile web install
+```json
+{
+  "mcpServers": {
+    "maoxuan": {
+      "command": "node",
+      "args": ["/绝对路径/dsh-mao-yuan/mcp/server.mjs"]
+    }
+  }
+}
 ```
 
-> 改 `package.json` 前记得备份。这个 profile 里还装了别的插件，
-> 改错会影响它们。
+改完**完全退出** Claude（不是关窗口），再打开。
 
-装完**重启 `dsh web`** 才生效。
+</details>
 
-装好后在任意会话里：
+<details>
+<summary><b>Claude Code</b></summary>
+
+一条命令：
+
+```bash
+claude mcp add maoxuan -- node "/绝对路径/dsh-mao-yuan/mcp/server.mjs"
+```
+
+</details>
+
+<details>
+<summary><b>Cursor</b></summary>
+
+配置文件：`~/.cursor/mcp.json`（全局）或 `<项目>/.cursor/mcp.json`（项目级）
+
+```json
+{
+  "mcpServers": {
+    "maoxuan": {
+      "command": "node",
+      "args": ["/绝对路径/dsh-mao-yuan/mcp/server.mjs"]
+    }
+  }
+}
+```
+
+在 Cursor 设置 → MCP 里确认服务显示绿灯。
+
+</details>
+
+<details>
+<summary><b>Cline（VS Code 扩展）</b></summary>
+
+Cline 面板 → MCP Servers → Configure → 编辑 `cline_mcp_settings.json`：
+
+```json
+{
+  "mcpServers": {
+    "maoxuan": {
+      "command": "node",
+      "args": ["/绝对路径/dsh-mao-yuan/mcp/server.mjs"],
+      "disabled": false,
+      "autoApprove": ["mao_search"]
+    }
+  }
+}
+```
+
+`autoApprove` 让检索不用每次点确认。
+
+</details>
+
+<details>
+<summary><b>Windsurf</b></summary>
+
+配置文件：`~/.codeium/windsurf/mcp_config.json`
+
+```json
+{
+  "mcpServers": {
+    "maoxuan": {
+      "command": "node",
+      "args": ["/绝对路径/dsh-mao-yuan/mcp/server.mjs"]
+    }
+  }
+}
+```
+
+</details>
+
+<details>
+<summary><b>Continue（VS Code / JetBrains）</b></summary>
+
+配置文件：`~/.continue/config.json`，注意是**数组**：
+
+```json
+{
+  "mcpServers": [
+    {
+      "name": "maoxuan",
+      "command": "node",
+      "args": ["/绝对路径/dsh-mao-yuan/mcp/server.mjs"]
+    }
+  ]
+}
+```
+
+</details>
+
+<details>
+<summary><b>Zed</b></summary>
+
+配置文件：`~/.config/zed/settings.json`，字段名是 `context_servers`：
+
+```json
+{
+  "context_servers": {
+    "maoxuan": {
+      "command": {
+        "path": "node",
+        "args": ["/绝对路径/dsh-mao-yuan/mcp/server.mjs"]
+      }
+    }
+  }
+}
+```
+
+</details>
+
+<details>
+<summary><b>其他 MCP 客户端</b></summary>
+
+只要支持 stdio 传输的 MCP 客户端，通用写法都是：
 
 ```
-/maoxuan 我们团队三个人，两个人互相不服，项目推不动
+command: node
+args:    ["/绝对路径/dsh-mao-yuan/mcp/server.mjs"]
+```
+
+不需要 API key，不需要网络（语料已在本地），不需要额外依赖。
+
+</details>
+
+### 第 3 步：让它按毛选的方式回答
+
+MCP 只提供**检索能力**。要让 AI 用毛选的方法论回答，还得告诉它怎么用。
+
+把下面这段贴进你的客户端（Claude 用 Project 说明，Cursor/Cline 用 `.cursorrules`
+或自定义指令）：
+
+```markdown
+当我说"用毛选分析"时，按以下方式工作：
+
+1. 先调查再发言。信息不足时先问 3–5 个具体问题，不要急着下结论。
+2. 任何"毛泽东认为""毛选里讲"的断言，必须先调用 mao_search 取证。
+3. 引用格式：篇名 · 章节 · 第 N 段。
+4. 检索不到就明确说"《毛选》里没有直接谈这个"，不得编造出处。
+5. 区分事实与判断，判断要带反证条件。
+6. 称我为"同志"，不说鸡汤，给能验证的下一步。
+```
+
+<details>
+<summary><b>用 DSH 的话，这段已经内置了</b></summary>
+
+如果你用的是 DeepSeek Harness，装成插件即可，提示词和 UI 都自带：
+
+```bash
+dsh plugin --profile web add link:/绝对路径/dsh-mao-yuan
+```
+
+重启 `dsh web` 后，在会话里输入：
+
+```
+/maoxuan 我们团队三个人，两个人互相不服
 ```
 
 输入框左侧会出现红色「● 毛选」胶囊，**本会话内持续生效**，后续直接追问即可。
-点胶囊或输入 `/maoxuan off` 关闭。
+点胶囊或 `/maoxuan off` 关闭。
 
-> 拉语料那步需要能访问 GitHub。如果你的网络访问 `raw.githubusercontent.com`
-> 不稳定，脚本走的是 `codeload` tarball，通常没问题。
-> 完全离线也可以：自己准备 Markdown 放入 `corpus/`，命名 `NNN-篇名.md`。
+> 路径含空格时 `dsh plugin add` 会报错（实测会截断路径）。
+> 这时手工登记更稳：建 junction 到 `~/.dsh/profiles/web/node_modules/dsh-mao-yuan`，
+> 再在 profile 的 `package.json` 里加进 `dependencies` 和 `dsh.profile.bundles`，
+> 最后 `dsh plugin --profile web install`。改前记得备份。
 
----
-
-## 和现有项目有什么不同
-
-GitHub 上已有多个"毛选 skill"项目，做得都很好。但它们**全部是提示词包**——
-没有检索，也就没有溯源：
-
-| 项目 | ★ | 形态 | 能溯源吗 |
-|---|---|---|---|
-| [qiushi-skill](https://github.com/HughYau/qiushi-skill) | 3820 | 方法论 skill（去 IP 化） | ✗ |
-| [maoxuan-skill](https://github.com/leezythu/maoxuan-skill) | 1231 | 心智模型 + 表达 DNA | ✗ |
-| [Maoxuan-Changzheng](https://github.com/zhangtianruiwork-droid/Maoxuan-Changzheng) | 447 | 五阶段协议 + React 前端 | ✗ |
-| [xinqingnian-maoxuan-skill](https://github.com/SamadhiFire/xinqingnian-maoxuan-skill) | 367 | 拆局方法论 + HTML 报告 | ✗ |
-| **本项目** | — | **DSH 插件 + BM25 检索** | **✓ 篇目·章节·段落号** |
-
-这些项目在 README 里几乎都写了同一句话——"我不是语录复读机"。
-这说明大家都意识到语气模仿不是重点，但**没人解决"怎么验证它没编造"**。
-
-本项目补的就是这一层。
+</details>
 
 ---
 
-## 它到底解决什么问题
+## 验证它真的在工作
 
-市面上的"毛选 AI"基本是提示词包。问题在于：模型可以随口说"毛泽东说过……"，
-**用户无法分辨真假**——而这类幻觉恰恰最难被发现，因为它听起来很像。
-
-本项目补的是这一层：**关键词检索 → 原文段落定位 → 强制引用**。
-
-检索不到，它会说"《毛选》里没有直接谈这个"，而不是编一个出处。
-
-### 实际检索效果
-
-下面是真实运行输出（`mao_search` 工具返回的内容）：
+问一个毛选确实谈过的问题：
 
 ```
-查询：主要矛盾 次要矛盾
-语料：2065 段 · 词表 102853
-
-【1】[23.55] 矛盾论 · 四　主要的矛盾和主要的矛盾方面 · 第 1 段
-   在矛盾特殊性的问题中，还有两种情形必须特别地提出来加以分析，
-   这就是主要的矛盾和主要的矛盾方面。在复杂的事物的发展过程中，
-   有许多的矛盾存在，其中必有一种是主要的矛盾，由于它的存在和…
-
-【2】[23.34] 工人阶级与资产阶级的矛盾是国内的主要矛盾 · 第 2 段
-   在打倒地主阶级和官僚资产阶级以后，中国内部的主要矛盾即是
-   工人阶级与民族资产阶级的矛盾，故不应再将民族资产阶级称为中间阶级。
-
-【3】[22.21] 做革命的促进派 · 第 26 段
-   第六点，无产阶级和资产阶级的矛盾，社会主义道路和资本主义道路的矛盾，
-   毫无疑问，这是当前我国社会的主要矛盾。…
+用毛选分析一下：什么是主要矛盾？
 ```
 
-每条都带**篇目 · 章节 · 段落号**，可以直接翻回原文核对。
+**期望**：AI 调用 `mao_search`，回答里出现 `矛盾论 › 四 主要的矛盾和主要的矛盾方面 （第 1 段）` 这样的出处。
 
----
-
-## 为什么是"按需"而不是常驻
-
-第一版把方法论写进 system prompt，结果是**问什么都会变成毛选腔**——查天气也叫你"同志"。这是错误的默认。
-
-现在改成 DSH 原生 **skill** 机制：
-
-| | 常驻注入（旧） | skill（现在） |
-|---|---|---|
-| 提示词位置 | system prompt 每轮都在 | 技能目录只放名字+一句话描述 |
-| 触发方式 | 无差别生效 | 模型判断相关才加载 / 用户 `/maoxuan` |
-| 问天气 | 也叫你同志 | 完全正常回答 |
-| 卸载 | 需要重装 | 一个开关 |
-
-> 这一版改动记录在 [`v0.2.0-skill`](https://github.com/liuyuhangwudi6666667777777/dsh-mao-yuan/releases/tag/v0.2.0-skill)，
-> 想对比旧行为可以 `git diff v0.1.0-a v0.2.0-skill`。
-
-## 三层开关
-
-```json
-// 装的时候可以传配置
-{ "enabled": true, "modelInvocable": true, "userInvocable": true, "sticky": true }
-```
-
-| 配置 | 效果 | 适用场景 |
-|---|---|---|
-| `enabled: false` | 插件完全不存在，不注册任何东西 | 暂时不想用 |
-| `modelInvocable: false` | **只能 `/maoxuan` 手动触发**，模型不会自己加载 | 想完全自己掌控（推荐） |
-| `userInvocable: false` | 模型可自动加载，但没 `/maoxuan` 命令 | 希望它自己判断 |
-| `sticky: false` | 关掉会话内持续生效，恢复"每次都要打 /maoxuan" | 只想单次使用 |
-| 全 true（默认） | 自动 + 手动 + 持续都可用 | 默认 |
-| `modelInvocable` + `userInvocable` 都 false | 只留 `mao_search` 工具 | 只想要检索能力 |
-
-**默认全开**，但 skill 描述里写死了排除条件——日常问答、事实查询、技术问题不加载。如果你连"模型自己判断"都不放心，把 `modelInvocable` 设成 `false`，就只有 `/maoxuan` 能唤起。
-
----
-
-## 日常用法
+再问一个毛选没谈过的：
 
 ```
-/maoxuan 我该不该辞职        ← 开启，本会话持续生效
-那我该怎么准备               ← 自动仍是毛选模式，不用重复输入
-还有别的风险吗               ← 继续有效
-/maoxuan off                ← 关闭，之后恢复正常
+用毛选分析一下：怎么优化 React 的渲染性能？
 ```
 
-**一次调用，会话内持续生效**，关掉就没了。
+**期望**：AI 明确说"《毛选》里没有直接谈这个"，然后可以讲方法论的一般用法，
+但要标明那是推演，不是原文。
 
-其他时候——问代码、查文档、闲聊——它不会出现。
+**如果它编了一个不存在的篇名——那就是没接上检索，检查第 2 步的配置。**
 
-开发时常用命令：
+本地也可以直接验证检索本身：
 
 ```bash
-node scripts/fetch-corpus.mjs --force   # 强制重新拉语料
-node scripts/eval.mjs --verbose         # 看每条查询的命中详情
-npm test                                # 53 个单元测试
+node mcp/server.mjs --selftest
 ```
-
----
-
-## 会话级持续生效是怎么实现的
-
-`/maoxuan` 的正文是那一刻作为一条 user message 注入历史的，**不会每轮重新出现**。多轮之后模型可能淡忘自己处在毛选模式，尤其上下文被压缩时。
-
-所以额外加了一个**动态 system prompt 段**：
-
-```js
-systemPrompt.section({
-  name: 'mao-yuan:active-reminder',
-  order: 10,
-  text: () => isActive(agent) ? ACTIVE_REMINDER : '',   // 函数，每轮求值
-})
-```
-
-- `text` 传函数，每次组装提示词时重新求值
-- **未激活返回空字符串 → 不占任何 token**
-- 激活后每轮返回 237 字简短提醒（不是全文，全文已由 skill 注入过）
-
-状态用 `WeakMap<Agent, boolean>` 存：
-
-| 特性 | 结果 |
-|---|---|
-| 会话隔离 | 每个 Agent 独立，A 开了不影响 B |
-| 自动回收 | WeakMap 不阻止 GC，会话结束状态自然消失 |
-| 不落盘 | 重启清空，符合"会话内生效"语义 |
-
-开关由 `agent/pre-step` 钩子扫描用户消息识别：
-
-| 输入 | 结果 |
-|---|---|
-| `/maoxuan` | 开 |
-| `/maoxuan <问题>` | 开，并按问题作答 |
-| `/maoxuan off` | 关 |
-| `/maoxuan 关` / `关闭` | 关 |
-| `/maoxuan 关掉这个项目合适吗` | **仍是开** |
-
-最后一条是刻意设计：只认**首词**是 `off`/`关`/`关闭`/`停止`/`退出` 才关闭，避免把正常提问误判成关闭指令。
-
----
-
-## 能力
-
-加载后：
-
-1. **先调查再发言** —— 信息不足先问 3–5 个具体问题，不急着下结论
-2. **强制引用** —— 任何"毛选怎么讲"必须先调 `mao_search` 检索原文
-3. **区分事实与判断** —— 每个判断带反证条件
-4. **称呼同志，不说鸡汤**
-
-检索不到就直说："《毛选》里没有直接谈这个。"
-
-### 一次完整的交互长什么样
-
-> 以下是**结构示意**（为了排版做了压缩），不是逐字转录。
-> 真实回答会引用具体段落，格式为 `篇名 · 章节 · 第 N 段`。
-
-```
-你：/maoxuan 我们团队三个人，两个人互相不服，项目推不动
-
-它：同志，先不急着下结论。我要问几个问题：
-    1. 那两个人具体在争什么？是技术路线、资源分配，还是谁说了算？
-    2. 最近一次公开冲突是什么时候，当时说了什么？
-    3. 你自己在这件事里是什么位置——拍板的人，还是协调的人？
-    4. 项目还有多久的交付期？拖下去代价是什么？
-    5. 你已经试过什么？结果如何？
-
-你：（补充了具体情况）
-
-它：把情况摆清
-    - 事实：……（你给的信息）
-    - 还缺：……（哪一块没搞清）
-
-    什么牵住全局
-    - 表面是"两个人不和"，真正的矛盾可能是……
-    - 依据：《矛盾论》· 四　主要的矛盾和主要的矛盾方面 · 第 1 段
-      "……其中必有一种是主要的矛盾……"
-    - 反证条件：如果……，说明我这个判断错了
-
-    眼下先做什么
-    1. ……（中心任务）
-    2. ……（先后手）
-    3. 观察信号：如果……，就说明方向对了
-```
-
-关键差别在第二段：**判断后面跟着原文出处和反证条件**。
-不是"我觉得应该……"，而是"依据这一段，我认为……；如果出现这个情况，我错了"。
-
----
-
-## 架构
-
-```
-用户提问
-   ↓
-┌─ 技能目录（常驻，只占一行）────────────┐
-│ maoxuan: 用《毛选》方法论拆解现实问题…  │  ctx.skills.register
-│ 仅在明确要求或结构性问题时使用           │  ← 描述里写死排除条件
-└────────────────┬───────────────────────┘
-                 ↓ 模型判断相关 / 用户 /maoxuan
-┌─ skill 正文（按需加载）────────────────┐
-│ 称呼同志 / 先追问 / 不说鸡汤 / 强制引用 │
-└────────────────┬───────────────────────┘
-                 ↓ 要取证时
-┌─ mao_search 工具（全局，被动）─────────┐
-│ BM25 → 篇目/章节/段落号/原文           │
-│ 未命中 → 明确"没有直接谈这个"          │
-└────────────────┬───────────────────────┘
-                 ↓
-┌─ 语料层 ───────▼───────────────────────┐
-│ 229 篇 → 2065 段（已剔除注释与题解）    │  本地 corpus/，gitignore
-└────────────────────────────────────────┘
-```
-
-`mao_search` 保持全局注册，但它是**被动**的：没有加载 skill 的上下文里，模型没有理由调用它。
-
----
-
-## 检索实现
-
-零依赖，纯 Node。
-
-| 组件 | 做法 | 理由 |
-|---|---|---|
-| 中文分词 | 无词典 **bigram** | 插件要轻、可离线；bigram 不会因缺词典切错专名 |
-| 排序 | **BM25**（k1=1.2, b=0.75） | 中文短段落常用值 |
-| 篇名加成 | idf 加权后**按篇名长度归一化** | 否则《工人阶级与资产阶级的矛盾是国内的主要矛盾》这类长标题会霸榜 |
-| 短语加成 | 查询连续子串原样出现在正文则加分 | bigram 会切出"与自""我批"这类跨词噪音，短语加成把真正的"自我批评"捞回来 |
-
-### 一个必须处理的坑：注释不是原文
-
-语料里 169/229 篇带 `------------------` + `注　　释` 注释块，179 篇带 `>` 题解。这些是**人民出版社编辑作品**，既不是毛泽东原文，也不在公有领域。
-
-不过滤会导致：答案张冠李戴（《为人民服务》Top-1 曾是张思德的脚注），以及版权越界。
-
-`stripApparatus()` 切掉两者：段落数 2508 → 2065，剔除 443 条。
-
-### 评测结果
-
-```
-段落数：2065
-词表规模：102853
-命中率：20/20 = 100.0%（阈值 85%）
-单元测试：22 个全部通过
-```
-
-判据刻意选成**可客观验证**的：Top-5 中至少一段的「篇名 + 正文」包含指定关键短语。
-
-不用"必须命中某个篇目"——同一主题在《毛选》里天然分散在多篇（"批评与自我批评"在《整顿党的作风》《论联合政府》都讲），按篇目判会误伤正确结果，还会诱导过拟合。
-
----
-
-## 版权（重要）
-
-**本仓库只包含代码，不包含《毛选》原文全文。** 完整说明见 [NOTICE.md](./NOTICE.md)，要点：
-
-| 内容 | 状态 |
-|---|---|
-| 本仓库代码（`src/` `lib/` `test/` `scripts/`） | **MIT**，可自由使用 |
-| 《毛选》单篇著作 | 保护期至 **2026-12-31** 届满（作者 1976 年逝世 + 50 年） |
-| 选集的编排、校订、**注释与题解** | 编者作品，权利独立于单篇著作 |
-| 第三方语料源 | 该仓库**未声明开源许可**，本项目不转存、不再分发 |
-
-据此，本项目做了三件事：
-
-1. **全文不入库**：`.gitignore` 排除 `corpus/`，仓库只存代码（22 个文件，72 KB）
-2. **用户本地拉取**：`scripts/fetch-corpus.mjs` 在本地下载，不经仓库分发
-3. **检索时剥离注释与题解**：`stripApparatus()` 切掉 `注　　释` 段与 `>` 题解
-
-第 3 条同时解决两个问题：
-
-- **准确性** —— 注释不是毛泽东的话，混进结果会让答案张冠李戴
-  （实测：《为人民服务》的 Top-1 命中曾是张思德的脚注）
-- **版权** —— 注释是编者作品，不在单篇著作保护期内
-
-实测：2508 段 → 2065 段，剔除 443 条。
-
-> 署名权、修改权、保护作品完整权的保护期不受限制。
-> 即使财产权利届满，引用时仍应准确署名、不得歪曲篡改。
 
 ---
 
@@ -370,54 +298,52 @@ systemPrompt.section({
 
 ```
 dsh-mao-yuan/
-├── LICENSE               # MIT（仅覆盖代码）
-├── NOTICE.md             # 版权与使用声明（重要）
-├── cordis.patch.yml      # 挂进 host Loader
-├── package.json          # dsh.bundle.patch 声明
-├── scripts/
-│   ├── fetch-corpus.mjs  # 拉语料（走 tarball，raw.githubusercontent 常被重置）
-│   └── eval.mjs          # 检索质量评测，低于阈值退出码非 0
+├── mcp/
+│   ├── server.mjs          # MCP server（stdio，零依赖）
+│   └── print-config.mjs    # 生成各客户端配置片段
 ├── src/
-│   ├── index.js          # 插件入口 + 三层开关 + pre-step 钩子
-│   ├── skill.js          # 按需加载的 skill 定义
-│   ├── session-state.js  # 会话级激活状态（WeakMap）+ /maoxuan 开关解析
-│   ├── active-reminder.js# 动态提示词段（未激活返回空串）
-│   ├── corpus.js         # 装载 + 剥离注释题解 + 段落切分
-│   ├── tokenize.js       # 无词典 bigram
-│   ├── bm25.js           # BM25 + 篇名/短语加成
-│   └── tool-search.js    # mao_search 工具
-├── test/                 # 53 个单元测试
-└── corpus/               # 语料（gitignore，不入库）
+│   ├── search-core.js      # 检索核心，MCP 与 DSH 共用
+│   ├── bm25.js             # BM25 + 篇名/短语加成
+│   ├── tokenize.js         # 无词典 bigram 中文分词
+│   ├── corpus.js           # 装载 + 剔除注释题解 + 段落切分
+│   ├── index.js            # DSH 插件入口
+│   ├── skill.js            # DSH 的按需加载 skill
+│   ├── session-state.js    # DSH 会话级状态
+│   ├── active-reminder.js  # DSH 动态提示词段
+│   └── tool-search.js      # DSH 的 defineTool 包装
+├── lib/client.js           # DSH 浏览器端（状态胶囊 + 自动预填）
+├── scripts/                # 语料拉取、检索评测
+└── corpus/                 # 语料（gitignore，不入库）
 ```
+
+**核心是 `src/search-core.js`**：MCP 和 DSH 两个入口都调它，
+所以两边引用格式完全一致。
 
 ---
 
 ## 已知限制
 
-公开写出来，省得你踩坑后才发现：
+| 限制 | 说明 |
+|---|---|
+| **纯关键词检索** | 没有向量。问"我该不该辞职"这类语义模糊的问题，召回不如问"矛盾""持久战" |
+| **不判断时效** | 语料是 1925–1957 年的文本，问 2026 年的具体事件它没有依据 |
+| **依赖第三方语料源** | 拉取脚本指向的仓库未声明许可证，可能变更或删除，需要自备语料 |
+| **MCP 只管检索** | 提示词协议要你自己贴（DSH 插件才内置） |
 
-| 限制 | 说明 | 影响 |
-|---|---|---|
-| **纯关键词检索** | 没有向量检索。"我该不该辞职"这类**语义**问题，关键词命中率不如概念词 | 问"矛盾""持久战"很准，问生活化的模糊表述可能检索不到 |
-| **依赖第三方语料源** | `fetch-corpus.mjs` 指向的仓库未声明许可证，且可能变更/删除 | 拉取可能失败，需要自备语料 |
-| **不判断时效** | 语料是 1925–1957 年的文本。问 2026 年的具体事件，它没有依据 | 它只能给方法论，不能给事实 |
-| **引用准确性靠检索** | 如果 BM25 排序错了，模型引用的段落可能不切题 | 评测覆盖 20 个典型概念词，但长尾问题未覆盖 |
-| **只在 DSH 内工作** | 依赖 `ctx.skills` / `ctx.slots`，不是通用聊天机器人 | 不能直接搬到别的平台 |
-| **客户端预填是启发式** | 靠草稿文本变化判断状态，不是服务端权威状态 | 极端情况下（如多标签页同时操作）可能不同步 |
-
-如果这些里有你能改进的，欢迎 PR。特别是**加向量检索做混合召回**，那会显著提升语义问题的命中率。
+第 1 条最影响体验。加向量做混合召回会显著改善，欢迎 PR。
 
 ---
 
-## 路线
+## 开发
 
-- [x] **A. 溯源** —— 检索 + 强制引用 + 按需加载 + 会话内持续（当前）
-- [ ] **B. 实践档案** —— 把每次拆局存成卡片，形成"实践—认识—再实践"档案
-- [ ] **C. 混合检索** —— BM25 + 向量，解决语义问题的召回
-
-先做 A 是因为 B 完全依赖 A 的准确率：引用都不可信，存档下来的就是垃圾。
+```bash
+npm test                  # 60 个测试
+node scripts/eval.mjs     # 检索评测，低于 85% 退出码非 0
+npm run mcp:selftest      # MCP 检索自检
+npm run mcp:config        # 打印客户端配置
+```
 
 ## License
 
-代码 MIT，详见 [LICENSE](./LICENSE)。
-语料版权见 [NOTICE.md](./NOTICE.md)。
+代码 MIT，见 [LICENSE](./LICENSE)。
+语料版权与第三方来源见 [NOTICE.md](./NOTICE.md)。

@@ -1,13 +1,16 @@
 # 依赖与构建产物
 node_modules/
-lib/
 dist/
 *.tsbuildinfo
+
+# lib/ 不是构建产物目录，而是**手写的客户端 bundle**（lib/client.js），必须入库。
+# 客户端插件跑在浏览器里，用 __ModuleLoader__ 包装，不经过构建工具。
+# 之前这里写了 `lib/` 导致 lib/client.js 被误忽略，克隆后客户端功能失效。
 
 # ---- 语料：绝不入库 ----
 # 《毛泽东选集》单篇著作权保护期至 2026-12-31 届满；
 # 且"选集"的编排与注释属人民出版社编辑作品，不在公有领域。
-# 全文一律由用户本地拉取（npm run corpus），仓库只存索引与短引。
+# 全文一律由用户本地拉取（npm run corpus），仓库只存代码。
 corpus/
 data/corpus/
 data/index/

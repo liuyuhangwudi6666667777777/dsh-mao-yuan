@@ -90,23 +90,13 @@ export function apply(ctx, config = {}) {
     : Promise.resolve()
 
   // --- 检索工具（全局，被动）---
-  const baseTool = createSearchTool({
-    search: (q, o) => (index ? index.search(q, o) : []),
-    get size() {
-      return index?.size ?? 0
-    },
-  })
+  // 检索与格式化都在 search-core.js，与 MCP server 共用同一份实现
+  const baseTool = createSearchTool(() => index)
 
   const tool = {
     ...baseTool,
     async execute(args) {
       await ready
-      if (!index) {
-        return {
-          content:
-            '语料未就绪，无法检索。请先在插件目录运行 node scripts/fetch-corpus.mjs，然后重启会话。',
-        }
-      }
       return baseTool.execute(args)
     },
   }

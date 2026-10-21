@@ -1,32 +1,44 @@
 {
   "name": "dsh-mao-yuan",
-  "version": "0.4.0",
-  "description": "毛选溯源参谋：以《毛泽东选集》方法论拆解问题，每个判断可回溯原文出处。关键词检索 + 强制引用 + 会话内持续生效。",
+  "version": "1.0.0",
+  "description": "毛选溯源参谋：用《毛泽东选集》方法论拆解问题，每个判断可回溯原文出处。可作为 DSH 插件或 MCP server 使用。",
   "private": false,
   "type": "module",
   "main": "./src/index.js",
+  "bin": {
+    "mao-yuan-mcp": "./mcp/server.mjs"
+  },
   "exports": {
     ".": "./src/index.js",
     "./client": "./lib/client.js",
+    "./search": "./src/search-core.js",
+    "./mcp": "./mcp/server.mjs",
     "./package.json": "./package.json"
   },
   "files": [
     "src",
-    "lib"
+    "lib",
+    "mcp",
+    "scripts"
   ],
   "license": "MIT",
   "keywords": [
-    "dsh-plugin",
+    "mcp",
+    "model-context-protocol",
     "maoxuan",
     "mao",
     "rag",
     "retrieval",
-    "methodology"
+    "methodology",
+    "dsh-plugin"
   ],
   "scripts": {
     "corpus": "node scripts/fetch-corpus.mjs",
     "test": "node --test \"test/*.test.js\"",
-    "eval": "node scripts/eval.mjs"
+    "eval": "node scripts/eval.mjs",
+    "mcp": "node mcp/server.mjs",
+    "mcp:selftest": "node mcp/server.mjs --selftest",
+    "mcp:config": "node mcp/print-config.mjs"
   },
   "peerDependencies": {
     "@deepseek-ai/dsh-tools": ">=0.1.5-rc <2",
@@ -36,6 +48,18 @@
     "react": ">=18"
   },
   "peerDependenciesMeta": {
+    "@deepseek-ai/dsh-tools": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh-system-prompt": {
+      "optional": true
+    },
+    "@deepseek-ai/cordis": {
+      "optional": true
+    },
+    "@deepseek-ai/schemastery": {
+      "optional": true
+    },
     "react": {
       "optional": true
     }
