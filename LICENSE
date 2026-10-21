@@ -19,24 +19,3 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-
----
-
-## 本许可证的适用范围（中文说明，与上方 MIT 条款同等有效）
-
-**MIT 许可仅覆盖本仓库的代码与文档**，即：
-- `src/`、`lib/`、`test/`、`scripts/` 下的全部源代码
-- `README.md`、`LICENSE`、`package.json` 等项目文件
-
-**MIT 许可不覆盖以下内容**，它们各有独立的权利状态：
-
-1. **《毛泽东选集》原文**
-   本仓库不包含、不分发原文全文。全文由使用者运行
-   `scripts/fetch-corpus.mjs` 从第三方仓库本地获取。
-
-2. **选集版本的编排、校订与注释**
-   若涉及人民出版社等机构的选集版本，其篇目选择、编排体例、
-   校订成果与注释文字属于编辑作品，权利状态独立于单篇著作。
-
-3. **第三方语料源**
-   见 `NOTICE.md`。
