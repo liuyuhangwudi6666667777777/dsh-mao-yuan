@@ -14,12 +14,19 @@ test('skill: 名称是可用于 /命令 的 kebab-case', () => {
 })
 
 test('skill: 描述里写明了不该用的场景（防止过度触发）', () => {
-  assert.ok(SKILL_DESCRIPTION.includes('不要用'), '必须显式排除日常问题')
-  assert.ok(/日常问答|技术问题/.test(SKILL_DESCRIPTION))
+  assert.ok(SKILL_DESCRIPTION.includes('触发条件'), '必须写明触发条件')
+  assert.ok(SKILL_DESCRIPTION.includes('/maoxuan'), '必须指明唯一触发方式是 /maoxuan')
+  assert.ok(SKILL_DESCRIPTION.includes('不要自行判断'), '必须禁止模型凭语义加载')
 })
 
-test('skill: whenToUse 强调用户普通提问时不要主动加载', () => {
-  assert.ok(SKILL_WHEN_TO_USE.includes('不要主动加载'))
+test('skill: whenToUse 只认 /maoxuan 命令', () => {
+  assert.ok(SKILL_WHEN_TO_USE.includes('/maoxuan'), '必须指明 /maoxuan')
+  assert.ok(SKILL_WHEN_TO_USE.includes('不要加载'), '必须明确除此之外不加载')
+  // 关键：连"用毛选分析"这类自然语言请求也不自动加载
+  assert.ok(
+    SKILL_WHEN_TO_USE.includes('用毛选分析'),
+    '必须点名"用毛选分析"也不自动触发，防止模型自我说服',
+  )
 })
 
 test('skill: 三条硬约束都在正文里', () => {

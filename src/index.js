@@ -40,15 +40,25 @@ const REMINDER_ORDER = 10
 /**
  * @typedef {object} Config
  * @property {boolean} enabled          插件总开关
- * @property {boolean} modelInvocable   允许模型在相关问题出现时自动加载 skill
+ * @property {boolean} modelInvocable   允许模型凭语义自行加载 skill（默认关闭）
  * @property {boolean} userInvocable    允许用户用 /maoxuan 手动触发
  * @property {boolean} sticky           允许会话内持续生效（默认开）
  */
 
-/** @type {Required<Config>} */
+/**
+ * 默认值：**只认 /maoxuan 命令**。
+ *
+ * modelInvocable 默认 false —— 这是刻意选择：
+ * 让模型凭语义判断"这问题该用毛选"，结果就是正常对话被污染。
+ * 宁可少触发，用户想要时自己打 /maoxuan。
+ *
+ * 想恢复"模型可自动加载"，把 modelInvocable 设为 true。
+ *
+ * @type {Required<Config>}
+ */
 export const DEFAULTS = {
   enabled: true,
-  modelInvocable: true,
+  modelInvocable: false,
   userInvocable: true,
   sticky: true,
 }
